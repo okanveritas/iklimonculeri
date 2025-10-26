@@ -1,0 +1,233 @@
+/* Temel Ayarlar */
+:root {
+    --primary-color: #2c6e49;
+    --secondary-color: #fefee3;
+    --danger-color: #d90429;
+    --light-gray: #f4f4f4;
+    --gray: #ccc;
+    --dark-text: #333;
+    --border-radius: 8px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #fdfdfd;
+    color: var(--dark-text);
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Header */
+header {
+    background: var(--primary-color);
+    color: white;
+    padding: 20px 0;
+    margin-bottom: 30px;
+}
+header h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+header h1 a {
+    color: white;
+    text-decoration: none;
+}
+header p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+/* Geri Linki */
+.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* Filtreler */
+.filters {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.filter-btn, #category-filter {
+    padding: 10px 15px;
+    border: 1px solid var(--gray);
+    background-color: white;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.filter-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+#category-filter {
+    font-size: 0.9rem;
+}
+
+/* Ürün Listesi */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.product-card {
+    background: white;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--dark-text);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+.product-card-content {
+    padding: 20px;
+}
+.product-card-content h3 {
+    margin: 0 0 10px 0;
+}
+.product-card-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+.product-card-footer {
+    padding: 15px 20px;
+    background-color: var(--light-gray);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.score {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+.score-100 { color: var(--primary-color); }
+.score-50 { color: #f5a623; }
+.score-0 { color: var(--danger-color); }
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+.badge.green { background-color: var(--primary-color); color: white; }
+.badge.red { background-color: var(--danger-color); color: white; }
+
+/* Ürün Detay Sayfası */
+#product-detail-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+@media (max-width: 768px) {
+    #product-detail-content { grid-template-columns: 1fr; }
+}
+
+.product-info h2 {
+    margin-top: 0;
+    font-size: 2.2rem;
+}
+.product-info p {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.emission-card {
+    background: white;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.emission-card .badge {
+    margin-bottom: 15px;
+    display: inline-block;
+    font-size: 1rem;
+    padding: 8px 12px;
+}
+.emission-card .score {
+    font-size: 3rem;
+    margin-bottom: 5px;
+}
+.emission-card .score-label {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 20px;
+}
+.emission-details p {
+    margin: 10px 0;
+    font-size: 1rem;
+}
+.equivalency {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--gray);
+    font-size: 1.1rem;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: var(--border-radius);
+}
+
+.educational-box {
+    margin-top: 20px;
+    background: var(--secondary-color);
+    border: 1px solid #e0e0b8;
+    padding: 20px;
+    border-radius: var(--border-radius);
+}
+.educational-box h4 {
+    margin: 0 0 10px 0;
+    color: var(--primary-color);
+}
+
+/* Alternatifler ve Trivia */
+.alternatives-container, .trivia-box {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid var(--light-gray);
+}
+.trivia-box {
+    background-color: var(--light-gray);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    border: none;
+}
+.trivia-box h4 { margin-top: 0; }
+
+/* Yükleyici */
+.loader {
+    text-align: center;
+    padding: 50px;
+    font-size: 1.2rem;
+    color: #666;
+}
+
+/* Footer */
+footer {
+    margin-top: 40px;
+    padding: 30px 0;
+    background-color: var(--dark-text);
+    color: #f4f4f4;
+    text-align: center;
+}

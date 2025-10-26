@@ -1,0 +1,8 @@
+{
+    "emissionThresholdKg": 2.5,
+    "factorAir": 0.60,
+    "factorShip": 0.02,
+    "factorRoad": 0.12,
+    "factorTrain": 0.04,
+    "carEquivalencyFactor": 0.12
+}

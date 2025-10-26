@@ -1,0 +1,92 @@
+[
+    {
+        "id": 1,
+        "name": "Brezilya Muz",
+        "category": "Meyve",
+        "originCountry": "Brezilya",
+        "transportType": "ship",
+        "distanceKm": 9300,
+        "weightKg": 1.0
+    },
+    {
+        "id": 2,
+        "name": "Peru Avokado",
+        "category": "Meyve",
+        "originCountry": "Peru",
+        "transportType": "air",
+        "distanceKm": 10100,
+        "weightKg": 1.0
+    },
+    {
+        "id": 3,
+        "name": "İspanyol Portakal",
+        "category": "Meyve",
+        "originCountry": "İspanya",
+        "transportType": "road",
+        "distanceKm": 1800,
+        "weightKg": 1.0
+    },
+    {
+        "id": 4,
+        "name": "Kenya Taze Fasulye",
+        "category": "Sebze",
+        "originCountry": "Kenya",
+        "transportType": "air",
+        "distanceKm": 6800,
+        "weightKg": 1.0
+    },
+    {
+        "id": 5,
+        "name": "Yerli Elma",
+        "category": "Meyve",
+        "originCountry": "Türkiye",
+        "transportType": "road",
+        "distanceKm": 50,
+        "weightKg": 1.0
+    },
+    {
+        "id": 6,
+        "name": "Şili Üzüm",
+        "category": "Meyve",
+        "originCountry": "Şili",
+        "transportType": "air",
+        "distanceKm": 11700,
+        "weightKg": 1.0
+    },
+    {
+        "id": 7,
+        "name": "İtalyan Domates",
+        "category": "Sebze",
+        "originCountry": "İtalya",
+        "transportType": "train",
+        "distanceKm": 1400,
+        "weightKg": 1.0
+    },
+    {
+        "id": 8,
+        "name": "Kaliforniya Badem",
+        "category": "Kuruyemiş",
+        "originCountry": "ABD",
+        "transportType": "ship",
+        "distanceKm": 8600,
+        "weightKg": 1.0
+    },
+    {
+        "id": 9,
+        "name": "Meksika Misket Limonu",
+        "category": "Meyve",
+        "originCountry": "Meksika",
+        "transportType": "ship",
+        "distanceKm": 8800,
+        "weightKg": 1.0
+    },
+    {
+        "id": 10,
+        "name": "Vietnam Ejder Meyvesi",
+        "category": "Meyve",
+        "originCountry": "Vietnam",
+        "transportType": "air",
+        "distanceKm": 9200,
+        "weightKg": 1.0
+    }
+]
