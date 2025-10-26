@@ -1,0 +1,1129 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Leaf, Filter, Shield, ArrowLeft, Settings, Plus, Trash2, Edit, X,
+  Globe, Ship, Truck, Train, Plane, Search, BadgeCheck, BadgeAlert,
+  Menu, BookOpen, Brain, Star, User, Lock, RefreshCw, BarChart2
+} from 'lucide-react';
+
+// --- Database Schema (for simulation) ---
+/*
+  // Represents the PostgreSQL/MongoDB 'products' collection
+  Product {
+    id: string (uuid)
+    name: string (e.g., "Avocado")
+    origin: string (e.g., "Mexico")
+    transport: 'air' | 'ship' | 'road' | 'train'
+    distance: number (km)
+    weight: number (kg, avg unit weight)
+    category: string (e.g., "Fruit")
+    imageUrl: string
+  }
+
+  // Represents the 'settings' collection (likely a single document)
+  Settings {
+    id: 'global'
+    emissionFactors: {
+      air: number (kg CO₂e per km-kg)
+      ship: number
+      road: number
+      train: number
+    }
+    emissionThreshold: number (kg CO₂e for a green label)
+    carEquivalencyFactor: number (kg CO₂e per km)
+  }
+*/
+
+// --- Initial Mock Data ---
+const INITIAL_PRODUCTS = [
+  { id: 'p1', name: 'Avocado', origin: 'Mexico', transport: 'air', distance: 9000, weight: 0.17, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/84cc16/ffffff?text=Avocado' },
+  { id: 'p2', name: 'Banana', origin: 'Ecuador', transport: 'ship', distance: 10000, weight: 0.12, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/facc15/ffffff?text=Banana' },
+  { id: 'p3', name: 'Apple', origin: 'Poland', transport: 'road', distance: 1200, weight: 0.15, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/dc2626/ffffff?text=Apple' },
+  { id: 'p4', name: 'Asparagus', origin: 'Peru', transport: 'air', distance: 10500, weight: 0.25, category: 'Vegetable', imageUrl: 'https://placehold.co/600x400/16a34a/ffffff?text=Asparagus' },
+  { id: 'p5', name: 'Grapes', origin: 'South Africa', transport: 'ship', distance: 12000, weight: 0.5, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/a855f7/ffffff?text=Grapes' },
+  { id: 'p6', name: 'Tomato', origin: 'Spain', transport: 'road', distance: 1800, weight: 0.08, category: 'Vegetable', imageUrl: 'https://placehold.co/600x400/ef4444/ffffff?text=Tomato' },
+  { id: 'p7', name: 'Strawberry', origin: 'Netherlands', transport: 'train', distance: 500, weight: 0.25, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/f43f5e/ffffff?text=Strawberry' },
+  { id: 'p8', name: 'Local Apple', origin: 'United Kingdom', transport: 'road', distance: 50, weight: 0.15, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/22c55e/ffffff?text=Local+Apple' },
+  { id: 'p9', name: 'Mango', origin: 'India', transport: 'air', distance: 7500, weight: 0.3, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/f97316/ffffff?text=Mango' },
+  { id: 'p10', name: 'Potato', origin: 'United Kingdom', transport: 'road', distance: 100, weight: 1, category: 'Vegetable', imageUrl: 'https://placehold.co/600x400/a16207/ffffff?text=Potato' },
+  { id: 'p11', name: 'Blueberries', origin: 'Chile', transport: 'air', distance: 11000, weight: 0.125, category: 'Fruit', imageUrl: 'https://placehold.co/600x400/3b82f6/ffffff?text=Blueberries' },
+];
+
+const INITIAL_SETTINGS = {
+  emissionFactors: {
+    // kg CO₂e per tonne-km (converted to kg-km)
+    air: 0.00113,     // High
+    road: 0.000096,   // Medium
+    ship: 0.000018,   // Low
+    train: 0.000028,  // Very Low
+  },
+  emissionThreshold: 0.5, // kg CO₂e for a single unit to get green label
+  carEquivalencyFactor: 0.17, // kg CO₂e per km for avg car
+};
+
+// --- Core Calculation Logic ---
+
+/**
+ * Calculates carbon emissions and eco-status for a product
+ * Formula: CarbonEmission = Distance(km) × EmissionFactor × Weight(kg)
+ */
+const calculateProductMetrics = (product, settings) => {
+  if (!product || !settings) return null;
+  
+  const factor = settings.emissionFactors[product.transport] || 0;
+  const emission = product.distance * factor * product.weight;
+  
+  const isEco = emission <= settings.emissionThreshold;
+  
+  // Green Score (0-100): 100 = 0 emission, 50 = at threshold
+  const score = Math.max(0, Math.min(100, Math.round(100 * (1 - emission / (settings.emissionThreshold * 2)))));
+  
+  // Equivalency
+  const carKm = (emission / settings.carEquivalencyFactor).toFixed(1);
+  const equivalency = `This is equivalent to driving a car for ${carKm} km.`;
+  
+  return {
+    emission: emission.toFixed(4), // kg CO₂e
+    isEco,
+    score,
+    equivalency,
+  };
+};
+
+// --- Gemini API Helper ---
+
+// Helper to retry fetch with exponential backoff
+const fetchWithBackoff = async (url, options, retries = 3, delay = 1000) => {
+  try {
+    return await fetch(url, options);
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise(res => setTimeout(res, delay));
+      return fetchWithBackoff(url, options, retries - 1, delay * 2);
+    }
+    throw err;
+  }
+};
+
+/**
+ * Calls the Gemini API to generate educational content.
+ * We ask for a structured JSON response.
+ */
+const getAiContent = async (product) => {
+  const apiKey = ""; // API key will be injected by the environment
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+  const prompt = `
+    Act as a sustainability expert for a web app called "EcoLabelr".
+    You are providing educational content for a specific product.
+    Product: ${product.name}
+    Origin: ${product.origin}
+    Transport: ${product.transport}
+    Distance: ${product.distance} km
+
+    Please generate the following content. Be concise, encouraging, and factual.
+    1.  **impact:** A 1-2 sentence summary of this product's environmental impact, focusing on transport.
+    2.  **tips:** An array of 3 short, actionable tips for consumers to reduce their food-related carbon footprint.
+    3.  **trivia:** A single, engaging sustainability trivia question or fact related to food or transport.
+    4.  **alternatives:** An array of 2-3 specific, more sustainable alternatives (e.g., "Locally grown apples", "Bananas (shipped by sea)").
+
+    Respond ONLY with a valid JSON object in the following format:
+    {
+      "impact": "...",
+      "tips": ["...", "...", "..."],
+      "trivia": "...",
+      "alternatives": ["...", "..."]
+    }
+  `;
+
+  try {
+    const response = await fetchWithBackoff(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API call failed with status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const candidate = result.candidates?.[0];
+    
+    if (candidate && candidate.content?.parts?.[0]?.text) {
+      const text = candidate.content.parts[0].text;
+      // Clean the text to ensure it's valid JSON
+      const jsonText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(jsonText);
+    } else {
+      throw new Error("Invalid response structure from API.");
+    }
+  } catch (error) {
+    console.error("Error fetching AI content:", error);
+    return {
+      impact: "Could not load environmental impact data. Please try again.",
+      tips: ["Buy local when possible.", "Check transport methods.", "Reduce food waste."],
+      trivia: "Did you know food transport accounts for about 6% of global greenhouse gas emissions?",
+      alternatives: ["Locally sourced seasonal fruits.", "Products transported by ship or train."]
+    };
+  }
+};
+
+
+// --- React Components ---
+
+/**
+ * Header Component
+ * Shows navigation and user/admin toggle
+ */
+const Header = ({ user, onToggleUser, onNavigate, onSetPage }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  return (
+    <nav className="bg-white shadow-md sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          {/* Logo / Brand Name */}
+          <div className="flex items-center">
+            <button onClick={() => onSetPage('home')} className="flex-shrink-0 flex items-center gap-2">
+              <Leaf className="h-8 w-8 text-green-600" />
+              <span className="text-2xl font-bold text-gray-800">EcoLabelr</span>
+            </button>
+          </div>
+
+          {/* Desktop Nav */}
+          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
+            <NavButton onClick={() => onSetPage('home')}>Products</NavButton>
+            {user.role === 'admin' && (
+              <NavButton onClick={() => onSetPage('admin')}>
+                <Lock className="w-4 h-4 mr-1" />
+                Admin Panel
+              </NavButton>
+            )}
+            
+            {/* User Toggle */}
+            <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
+              <User className="w-5 h-5 text-gray-600" />
+              <span className="text-sm font-medium">Viewing as: <span className="font-bold">{user.name}</span></span>
+              <button
+                onClick={onToggleUser}
+                title="Toggle User"
+                className="ml-2 bg-green-600 text-white p-1 rounded-full hover:bg-green-700 transition"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="flex items-center sm:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="sm:hidden border-t border-gray-200">
+          <div className="pt-2 pb-3 space-y-1">
+            <MobileNavButton onClick={() => { onSetPage('home'); setIsMobileMenuOpen(false); }}>Products</MobileNavButton>
+            {user.role === 'admin' && (
+              <MobileNavButton onClick={() => { onSetPage('admin'); setIsMobileMenuOpen(false); }}>
+                <Lock className="w-4 h-4 mr-2" />
+                Admin Panel
+              </MobileNavButton>
+            )}
+            <div className="px-4 pt-2">
+              <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
+                <User className="w-5 h-5 text-gray-600" />
+                <span className="text-sm font-medium">Viewing as: <span className="font-bold">{user.name}</span></span>
+                <button
+                  onClick={onToggleUser}
+                  title="Toggle User"
+                  className="ml-auto bg-green-600 text-white p-1 rounded-full hover:bg-green-700 transition"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+};
+
+const NavButton = ({ onClick, children }) => (
+  <button
+    onClick={onClick}
+    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition"
+  >
+    {children}
+  </button>
+);
+
+const MobileNavButton = ({ onClick, children }) => (
+  <button
+    onClick={onClick}
+    className="w-full text-left flex items-center pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+  >
+    {children}
+  </button>
+);
+
+/**
+ * Product Filter Component
+ */
+const ProductFilters = ({ filters, setFilters, categories, origins }) => {
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const resetFilters = () => {
+    setFilters({ search: '', category: 'all', origin: 'all', eco: 'all' });
+  };
+
+  return (
+    <div className="bg-white p-4 rounded-lg shadow-sm mb-6 sticky top-16 z-40">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Search */}
+        <div className="sm:col-span-2 lg:col-span-2">
+          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            Search Product
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              id="search"
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              placeholder="e.g., Avocado, Apple..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+            />
+            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
+
+        {/* Category */}
+        <div>
+          <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+            Category
+          </label>
+          <select
+            id="category"
+            value={filters.category}
+            onChange={(e) => handleFilterChange('category', e.target.value)}
+            className="w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+          >
+            <option value="all">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {/* Origin */}
+        <div>
+          <label htmlFor="origin" className="block text-sm font-medium text-gray-700 mb-1">
+            Origin
+          </label>
+          <select
+            id="origin"
+            value={filters.origin}
+            onChange={(e) => handleFilterChange('origin', e.target.value)}
+            className="w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+          >
+            <option value="all">All Origins</option>
+            {origins.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+
+        {/* Eco Status */}
+        <div>
+          <label htmlFor="eco" className="block text-sm font-medium text-gray-700 mb-1">
+            Eco-Label
+          </label>
+          <select
+            id="eco"
+            value={filters.eco}
+            onChange={(e) => handleFilterChange('eco', e.target.value)}
+            className="w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+          >
+            <option value="all">All Products</option>
+            <option value="eco">Eco-Friendly Only</option>
+            <option value="not_eco">High Impact</option>
+          </select>
+        </div>
+      </div>
+      <button
+        onClick={resetFilters}
+        className="text-sm text-gray-600 hover:text-green-600 mt-3"
+      >
+        Reset all filters
+      </button>
+    </div>
+  );
+};
+
+
+/**
+ * Product Card Component
+ */
+const ProductCard = ({ product, metrics, onSelect }) => {
+  const getTransportIcon = (transport) => {
+    switch (transport) {
+      case 'air': return <Plane className="w-4 h-4 text-red-500" />;
+      case 'ship': return <Ship className="w-4 h-4 text-blue-500" />;
+      case 'road': return <Truck className="w-4 h-4 text-gray-500" />;
+      case 'train': return <Train className="w-4 h-4 text-purple-500" />;
+      default: return null;
+    }
+  };
+
+  return (
+    <div
+      onClick={() => onSelect(product.id)}
+      className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer
+                 hover:shadow-xl transition-shadow duration-300 group"
+    >
+      <div className="relative">
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="w-full h-48 object-cover"
+          onError={(e) => e.target.src = 'https://placehold.co/600x400/cccccc/ffffff?text=Image+Error'}
+        />
+        {metrics.isEco ? (
+          <div className="absolute top-3 right-3 bg-green-500 text-white rounded-full p-2" title="Eco-Friendly">
+            <Shield className="w-6 h-6" />
+          </div>
+        ) : (
+          <div className="absolute top-3 right-3 bg-red-500 text-white rounded-full p-2" title="High Carbon Impact">
+            <BadgeAlert className="w-6 h-6" />
+          </div>
+        )}
+      </div>
+      <div className="p-4">
+        <h3 className="text-xl font-bold text-gray-800 group-hover:text-green-600 transition-colors">{product.name}</h3>
+        <p className="text-sm text-gray-500 mb-2">{product.category}</p>
+        
+        <div className="flex items-center justify-between text-sm text-gray-700 mb-3">
+          <span className="flex items-center gap-1.5">
+            <Globe className="w-4 h-4 text-gray-400" />
+            {product.origin}
+          </span>
+          <span className="flex items-center gap-1.5" title={`Transport: ${product.transport}`}>
+            {getTransportIcon(product.transport)}
+            {product.distance} km
+          </span>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-semibold text-gray-800">
+            {metrics.emission} <span className="text-xs font-normal text-gray-500">kg CO₂e</span>
+          </span>
+          {metrics.isEco ? (
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-800">
+              Eco-Friendly
+            </span>
+          ) : (
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-100 text-red-800">
+              High Impact
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * Product List Page
+ */
+const ProductListPage = ({ products, settings, onSelect, user }) => {
+  const [filters, setFilters] = useState({ search: '', category: 'all', origin: 'all', eco: 'all' });
+  
+  // Memoize processed product data (with metrics)
+  const processedProducts = useMemo(() => {
+    return products.map(p => ({
+      ...p,
+      metrics: calculateProductMetrics(p, settings)
+    })).filter(p => p.metrics); // Filter out any that failed calculation
+  }, [products, settings]);
+
+  // Memoize filter options
+  const { categories, origins } = useMemo(() => {
+    const allCategories = [...new Set(products.map(p => p.category))];
+    const allOrigins = [...new Set(products.map(p => p.origin))];
+    return { categories: allCategories.sort(), origins: allOrigins.sort() };
+  }, [products]);
+
+  // Memoize filtered products
+  const filteredProducts = useMemo(() => {
+    return processedProducts.filter(p => {
+      const { search, category, origin, eco } = filters;
+      
+      if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (category !== 'all' && p.category !== category) return false;
+      if (origin !== 'all' && p.origin !== origin) return false;
+      if (eco === 'eco' && !p.metrics.isEco) return false;
+      if (eco === 'not_eco' && p.metrics.isEco) return false;
+      
+      return true;
+    });
+  }, [processedProducts, filters]);
+  
+  // Sort by emissions (lowest first)
+  const sortedProducts = useMemo(() => {
+      return [...filteredProducts].sort((a, b) => a.metrics.emission - b.metrics.emission);
+  }, [filteredProducts]);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Our Products</h1>
+      <p className="text-lg text-gray-600 mb-6">
+        Find sustainable and eco-friendly fruits & vegetables. 
+        {user.badges?.includes('Eco Hero') && (
+          <span className="ml-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+            <Star className="w-4 h-4" /> Eco Hero
+          </span>
+        )}
+      </p>
+
+      <ProductFilters
+        filters={filters}
+        setFilters={setFilters}
+        categories={categories}
+        origins={origins}
+      />
+
+      {sortedProducts.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {sortedProducts.map(product => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              metrics={product.metrics}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-medium text-gray-800">No Products Found</h3>
+          <p className="text-gray-500 mt-1">Try adjusting your filters to find what you're looking for.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+/**
+ * Circular Progress Component for Green Score
+ */
+const CircularProgress = ({ score }) => {
+  const radius = 50;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  
+  let colorClass = 'text-green-500';
+  if (score < 70) colorClass = 'text-yellow-500';
+  if (score < 40) colorClass = 'text-red-500';
+
+  return (
+    <div className="relative w-40 h-40">
+      <svg className="w-full h-full" viewBox="0 0 120 120">
+        <circle
+          className="text-gray-200"
+          strokeWidth="10"
+          stroke="currentColor"
+          fill="transparent"
+          r={radius}
+          cx="60"
+          cy="60"
+        />
+        <circle
+          className={`${colorClass} transition-all duration-1000 ease-out`}
+          strokeWidth="10"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          stroke="currentColor"
+          fill="transparent"
+          r={radius}
+          cx="60"
+          cy="60"
+          transform="rotate(-90 60 60)"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`text-4xl font-bold ${colorClass.replace('text-', 'text-')}`}>{score}</span>
+        <span className="text-sm font-medium text-gray-500">/ 100</span>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Product Detail Page
+ */
+const ProductDetailPage = ({ product, settings, onBack }) => {
+  const [aiContent, setAiContent] = useState(null);
+  const [isLoadingAi, setIsLoadingAi] = useState(true);
+
+  const metrics = useMemo(() => calculateProductMetrics(product, settings), [product, settings]);
+
+  // Fetch AI content when component mounts
+  useEffect(() => {
+    const fetchContent = async () => {
+      setIsLoadingAi(true);
+      const content = await getAiContent(product);
+      setAiContent(content);
+      setIsLoadingAi(false);
+    };
+    fetchContent();
+  }, [product]);
+  
+  if (!metrics) {
+    return (
+      <div className="text-center p-12">
+        <p>Error calculating product data.</p>
+        <button onClick={onBack} className="mt-4 text-green-600 hover:text-green-800">
+          &larr; Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const getTransportIcon = (transport) => {
+    switch (transport) {
+      case 'air': return <Plane className="w-5 h-5" />;
+      case 'ship': return <Ship className="w-5 h-5" />;
+      case 'road': return <Truck className="w-5 h-5" />;
+      case 'train': return <Train className="w-5 h-5" />;
+      default: return null;
+    }
+  };
+
+  const transportColor = {
+    air: 'bg-red-100 text-red-800',
+    ship: 'bg-blue-100 text-blue-800',
+    road: 'bg-gray-100 text-gray-800',
+    train: 'bg-purple-100 text-purple-800',
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-sm text-gray-600 hover:text-green-600 mb-4"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to all products
+      </button>
+
+      <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* Image */}
+          <div className="relative">
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-64 md:h-full object-cover"
+              onError={(e) => e.target.src = 'https://placehold.co/600x600/cccccc/ffffff?text=Image+Error'}
+            />
+            {metrics.isEco ? (
+              <div className="absolute top-4 left-4 inline-flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg">
+                <BadgeCheck className="w-6 h-6" />
+                <span className="text-lg font-bold">Eco-Friendly</span>
+              </div>
+            ) : (
+              <div className="absolute top-4 left-4 inline-flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-full shadow-lg">
+                <BadgeAlert className="w-6 h-6" />
+                <span className="text-lg font-bold">High Carbon Impact</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Details */}
+          <div className="p-6 md:p-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">{product.name}</h1>
+            <p className="text-lg text-gray-500 mb-6">{product.category}</p>
+            
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Transport Details</h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Origin</span>
+                  <span className="font-medium text-gray-900">{product.origin}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Distance</span>
+                  <span className="font-medium text-gray-900">{product.distance.toLocaleString()} km</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Transport</span>
+                  <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${transportColor[product.transport]}`}>
+                    {getTransportIcon(product.transport)}
+                    {product.transport.charAt(0).toUpperCase() + product.transport.slice(1)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Carbon Footprint</h2>
+              <div className="text-center bg-gray-50 p-4 rounded-lg">
+                <span className="text-5xl font-bold text-gray-800">{metrics.emission}</span>
+                <span className="ml-1 text-lg text-gray-600">kg CO₂e</span>
+                <p className="text-sm text-gray-500 mt-1">per unit (~{product.weight} kg)</p>
+              </div>
+              <p className="text-center text-sm text-gray-600 mt-3">{metrics.equivalency}</p>
+            </div>
+            
+          </div>
+        </div>
+        
+        {/* Green Score & AI Content */}
+        <div className="bg-gray-50 p-6 md:p-8 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Score */}
+            <div className="flex flex-col items-center justify-center">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">EcoLabelr Green Score</h2>
+              <CircularProgress score={metrics.score} />
+            </div>
+
+            {/* AI Content */}
+            <div className="md:col-span-2">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Brain className="w-5 h-5 text-green-600" />
+                Sustainability Profile
+              </h2>
+              {isLoadingAi ? (
+                <div className="space-y-4">
+                  <div className="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-5/6 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-full h-4 bg-gray-200 rounded animate-pulse mt-6"></div>
+                  <div className="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Impact */}
+                  <div>
+                    <h3 className="font-semibold text-gray-700 mb-1">Environmental Impact</h3>
+                    <p className="text-sm text-gray-600">{aiContent?.impact}</p>
+                  </div>
+                  
+                  {/* Tips */}
+                  <div>
+                    <h3 className="font-semibold text-gray-700 mb-2">How to Reduce Your Footprint</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                      {aiContent?.tips?.map((tip, i) => <li key={i}>{tip}</li>)}
+                    </ul>
+                  </div>
+
+                  {/* Alternatives */}
+                  <div>
+                    <h3 className="font-semibold text-gray-700 mb-2">Eco-Friendly Alternatives</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {aiContent?.alternatives?.map((alt, i) => (
+                        <span key={i} className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800">{alt}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Trivia */}
+                  <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                    <p className="text-sm text-green-800"><span className="font-bold">Did you know?</span> {aiContent?.trivia}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/**
+ * Admin: Product Form
+ */
+const ProductForm = ({ initialProduct, onSubmit, onCancel }) => {
+  const [product, setProduct] = useState(
+    initialProduct || {
+      name: '', origin: '', transport: 'road', distance: 0, weight: 0, category: '', imageUrl: ''
+    }
+  );
+  
+  const isEdit = !!initialProduct;
+
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    setProduct(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
+    }));
+  };
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(product);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+      <h3 className="text-lg font-medium">{isEdit ? 'Edit Product' : 'Add New Product'}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input name="name" label="Product Name" value={product.name} onChange={handleChange} required />
+        <Input name="category" label="Category" value={product.category} onChange={handleChange} required />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input name="origin" label="Origin" value={product.origin} onChange={handleChange} required />
+        <div>
+          <label htmlFor="transport" className="block text-sm font-medium text-gray-700">Transport</label>
+          <select
+            id="transport"
+            name="transport"
+            value={product.transport}
+            onChange={handleChange}
+            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+          >
+            <option value="air">Air</option>
+            <option value="ship">Ship</option>
+            <option value="road">Road</option>
+            <option value="train">Train</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+         <Input name="distance" label="Distance (km)" type="number" value={product.distance} onChange={handleChange} required min="0" />
+         <Input name="weight" label="Avg. Weight (kg)" type="number" value={product.weight} onChange={handleChange} required min="0" step="0.01" />
+      </div>
+       <Input name="imageUrl" label="Image URL" value={product.imageUrl} onChange={handleChange} />
+       
+       <div className="flex justify-end gap-3 pt-2">
+          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">
+            Cancel
+          </button>
+          <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700">
+            {isEdit ? 'Save Changes' : 'Add Product'}
+          </button>
+       </div>
+    </form>
+  );
+};
+
+// Helper for ProductForm
+const Input = ({ label, ...props }) => (
+  <div>
+    <label htmlFor={props.name} className="block text-sm font-medium text-gray-700">{label}</label>
+    <input
+      id={props.name}
+      className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+      {...props}
+    />
+  </div>
+);
+
+
+/**
+ * Admin Panel Page
+ */
+const AdminPanel = ({ products, settings, onAdd, onUpdate, onDelete, onUpdateSettings }) => {
+  const [activeTab, setActiveTab] = useState('products');
+  const [editingProduct, setEditingProduct] = useState(null); // Product object
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [localSettings, setLocalSettings] = useState(settings);
+
+  // Handlers for Products
+  const handleAddSubmit = (newProduct) => {
+    onAdd({ ...newProduct, id: `p${Date.now()}` });
+    setShowAddForm(false);
+  };
+  
+  const handleEditSubmit = (updatedProduct) => {
+    onUpdate(updatedProduct);
+    setEditingProduct(null);
+  };
+  
+  const handleDelete = (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      onDelete(id);
+    }
+  };
+
+  // Handlers for Settings
+  const handleSettingsChange = (e, factor) => {
+    const { name, value } = e.target;
+    if (factor) {
+      setLocalSettings(prev => ({
+        ...prev,
+        emissionFactors: {
+          ...prev.emissionFactors,
+          [factor]: parseFloat(value) || 0
+        }
+      }));
+    } else {
+      setLocalSettings(prev => ({
+        ...prev,
+        [name]: parseFloat(value) || 0
+      }));
+    }
+  };
+
+  const handleSaveSettings = () => {
+    onUpdateSettings(localSettings);
+    alert("Settings saved!"); // In a real app, use a toast notification
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <TabButton name="products" icon={<BookOpen />} label="Products" activeTab={activeTab} onClick={setActiveTab} />
+          <TabButton name="settings" icon={<Settings />} label="Global Settings" activeTab={activeTab} onClick={setActiveTab} />
+          <TabButton name="stats" icon={<BarChart2 />} label="Stats (Coming Soon)" activeTab={activeTab} onClick={() => {}} disabled />
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div>
+        {/* --- Products Tab --- */}
+        {activeTab === 'products' && (
+          <div>
+            {/* Add/Edit Forms */}
+            {showAddForm && <ProductForm onSubmit={handleAddSubmit} onCancel={() => setShowAddForm(false)} />}
+            {editingProduct && <ProductForm initialProduct={editingProduct} onSubmit={handleEditSubmit} onCancel={() => setEditingProduct(null)} />}
+            
+            {/* Product Table */}
+            {!showAddForm && !editingProduct && (
+              <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                <div className="flex justify-between items-center p-4 border-b">
+                  <h2 className="text-xl font-semibold">Manage Products</h2>
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Product
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <Th>Name</Th>
+                        <Th>Origin</Th>
+                        <Th>Transport</Th>
+                        <Th>Distance (km)</Th>
+                        <Th>Weight (kg)</Th>
+                        <Th>Actions</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {products.map(p => (
+                        <tr key={p.id}>
+                          <Td>{p.name}</Td>
+                          <Td>{p.origin}</Td>
+                          <Td>{p.transport}</Td>
+                          <Td>{p.distance.toLocaleString()}</Td>
+                          <Td>{p.weight}</Td>
+                          <Td>
+                            <div className="flex gap-2">
+                              <button onClick={() => setEditingProduct(p)} className="text-green-600 hover:text-green-800" title="Edit">
+                                <Edit className="w-5 h-5" />
+                              </button>
+                              <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800" title="Delete">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- Settings Tab --- */}
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Emission Factors (kg CO₂e per kg-km)</h2>
+            <div className="space-y-4 mb-6">
+              <Input label="Air Transport" type="number" step="0.00001"
+                value={localSettings.emissionFactors.air}
+                onChange={(e) => handleSettingsChange(e, 'air')} />
+              <Input label="Ship Transport" type="number" step="0.00001"
+                value={localSettings.emissionFactors.ship}
+                onChange={(e) => handleSettingsChange(e, 'ship')} />
+              <Input label="Road Transport" type="number" step="0.00001"
+                value={localSettings.emissionFactors.road}
+                onChange={(e) => handleSettingsChange(e, 'road')} />
+              <Input label="Train Transport" type="number" step="0.00001"
+                value={localSettings.emissionFactors.train}
+                onChange={(e) => handleSettingsChange(e, 'train')} />
+            </div>
+            
+            <h2 className="text-xl font-semibold mb-4">Label Threshold</h2>
+            <div className="space-y-4 mb-6">
+              <Input label="Green Label Threshold (kg CO₂e)" type="number" step="0.01"
+                name="emissionThreshold"
+                value={localSettings.emissionThreshold}
+                onChange={handleSettingsChange} />
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveSettings}
+                className="inline-flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Helpers for Admin Panel Table
+const Th = ({ children }) => <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{children}</th>;
+const Td = ({ children }) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{children}</td>;
+const TabButton = ({ name, icon, label, activeTab, onClick, disabled = false }) => (
+  <button
+    onClick={() => !disabled && onClick(name)}
+    disabled={disabled}
+    className={`flex items-center gap-2 py-4 px-1 border-b-2 text-sm font-medium
+      ${activeTab === name
+        ? 'border-green-500 text-green-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+      ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+    `}
+  >
+    {icon}
+    {label}
+  </button>
+);
+
+
+/**
+ * Main App Component
+ * Handles routing, state, and CRUD operations
+ */
+export default function App() {
+  // --- STATE ---
+  // Mock Database Tables
+  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [settings, setSettings] = useState(INITIAL_SETTINGS);
+
+  // Mock Auth
+  const [user, setUser] = useState({ id: 'u1', name: 'Guest User', role: 'user', badges: ['Eco Hero'] });
+  
+  // Navigation State
+  const [page, setPage] = useState('home'); // 'home', 'product', 'admin'
+  const [selectedProductId, setSelectedProductId] = useState(null);
+
+  // --- DERIVED STATE ---
+  const selectedProduct = useMemo(
+    () => products.find(p => p.id === selectedProductId),
+    [products, selectedProductId]
+  );
+  
+  // --- AUTH HANDLERS ---
+  const toggleUser = () => {
+    if (user.role === 'user') {
+      setUser({ id: 'a1', name: 'Admin', role: 'admin', badges: [] });
+    } else {
+      setUser({ id: 'u1', name: 'Guest User', role: 'user', badges: ['Eco Hero'] });
+    }
+  };
+
+  // --- NAVIGATION HANDLERS ---
+  const handleSelectProduct = (id) => {
+    setSelectedProductId(id);
+    setPage('product');
+  };
+
+  const handleBack = () => {
+    setSelectedProductId(null);
+    setPage('home');
+  };
+
+  // --- MOCK API (CRUD) HANDLERS ---
+  const handleAddProduct = (newProduct) => {
+    setProducts(prev => [newProduct, ...prev]);
+  };
+  
+  const handleUpdateProduct = (updatedProduct) => {
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  };
+  
+  const handleDeleteProduct = (id) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+  };
+  
+  const handleUpdateSettings = (newSettings) => {
+    setSettings(newSettings);
+  };
+
+  // --- RENDER LOGIC ---
+  const renderPage = () => {
+    switch (page) {
+      case 'product':
+        return <ProductDetailPage product={selectedProduct} settings={settings} onBack={handleBack} />;
+      case 'admin':
+        if (user.role === 'admin') {
+          return <AdminPanel
+            products={products}
+            settings={settings}
+            onAdd={handleAddProduct}
+            onUpdate={handleUpdateProduct}
+            onDelete={handleDeleteProduct}
+            onUpdateSettings={handleUpdateSettings}
+          />;
+        }
+        // If a non-admin tries to access, send them home
+        setPage('home');
+        return null;
+      case 'home':
+      default:
+        return <ProductListPage
+          products={products}
+          settings={settings}
+          onSelect={handleSelectProduct}
+          user={user}
+        />;
+    }
+  };
+
+  return (
+    <div className="bg-gray-100 min-h-screen font-inter">
+      <Header user={user} onToggleUser={toggleUser} onSetPage={setPage} />
+      <main>
+        {renderPage()}
+      </main>
+      <footer className="text-center py-6 bg-gray-200 text-gray-600 text-sm mt-12">
+        <p>&copy; {new Date().getFullYear()} EcoLabelr. All rights reserved.</p>
+        <p>This is a conceptual demo. Emission factors are illustrative.</p>
+      </footer>
+    </div>
+  );
+}
