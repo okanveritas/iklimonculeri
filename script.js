@@ -267,16 +267,63 @@ const App = {
          content.innerHTML = calculatorHTML;
          this.attachCalculatorListener();
     },
-    /** Blog Sayfası */
+    /** Blog Sayfası (GÜNCELLENDİ) */
     renderBlogPage(content, title) {
          title.textContent = '💡 Proje: ReEarth';
          content.className = 'grid grid-cols-1 gap-6';
          const blogHTML = `
             <div class="col-span-full bg-white rounded-xl shadow-lg p-6 md:p-10 max-w-3xl mx-auto border border-gray-200 fade-in-up">
                 <div class="flex justify-center mb-8"><img src="https://i.imgur.com/kS5xP0s.png" alt="İklim Öncüleri Logosu" class="h-20"></div>
-                <h3 class="text-3xl font-extrabold text-gray-900 mb-4 text-center">ReEarth: Bilinçli Tüketim Hareketi</h3>
-                <p class="text-xl text-gray-600 mb-8 border-b pb-8 text-center font-medium">Karbon Ayak İzini Azaltmak İçin Yerli Üretimi Desteklemek ve Tüketiciyi Bilinçlendirmek.</p>
-                <div class="prose prose-lg max-w-none text-gray-700"><h4>Problemimiz Ne?</h4><ul><li><strong>İthal Ürünlerin Gizli Maliyeti:</strong> Sofranıza gelen meyve ve sebzelerin kat ettiği binlerce kilometrelik yolculuk, ciddi bir karbon ayak izi bırakıyor.</li><li><strong>Yerel Üreticinin Mücadelesi:</strong> Kendi çiftçimiz desteklenmediğinde, hem ekonomi hem de çevre kaybediyor.</li><li><strong>Bilgi Eksikliği:</strong> Çoğu tüketici, yaptığı seçimin çevresel etkisinin farkında değil.</li></ul><h4>ReEarth Çözümü</h4><p>Bu platform, basit ama güçlü bir fikir üzerine kurulu: Şeffaflık. Amacımız:</p><ul><li><strong>Karşılaştırma Gücü:</strong> İthal ve yerli ürünlerin karbon ayak izlerini yan yana göstererek bilinçli karar vermenizi sağlamak.</li><li><strong>Dijital Etiketleme:</strong> Her ürünün çevresel etkisini <code>Düşük</code>, <code>Orta</code>, <code>Yüksek</code> olarak net bir şekilde etiketlemek.</li><li><strong>Yerel Desteği:</strong> Düşük emisyonlu yerel ürünleri öne çıkararak çiftçimizi desteklemek.</li></ul><h4>Etiket Sistemimiz: Neye Göre? (🌱 / ⚠️ / 🔥)</h4><p>Hesaplamalarımızda "Gıda Kilometresi" ve taşıma türünün etkisini birleştiren bilimsel faktörler kullanıyoruz:</p><ol><li><strong>Mesafe (km):</strong> Ne kadar uzak, o kadar emisyon.</li><li><strong>Taşıma Türü:</strong> Uçak ✈️ (En Kötü) > Kamyon 🚚 > Tren 🚆 > Gemi 🚢 (En İyi).</li></ol><p>Ürünleri 3 basit kategoriye ayırıyoruz:</p><ul><li><strong class="text-ecoGreen-text">🌱 Düşük Emisyon (Yeşil):</strong> ${settings.tierLowThresholdGrams} gCO₂e altı. Harika seçim!</li><li><strong class="text-ecoYellow-text">⚠️ Orta Emisyon (Sarı):</strong> ${settings.tierLowThresholdGrams}g - ${settings.tierMediumThresholdGrams}g arası. Daha iyisi olabilir.</li><li><strong class="text-ecoRed-text">🔥 Yüksek Emisyon (Kırmızı):</strong> ${settings.tierMediumThresholdGrams}g üzeri. Yerel alternatifini düşünün!</li></ul><h4>Gelecek: Yeşil Puan & Ödüller ✨</h4><p>Vizyonumuz, bu platformu bir adım öteye taşımak. PDF'imizde bahsettiğimiz "Yeşil Puan" sistemi ile:</p><blockquote>Düşük emisyonlu ürünleri seçen tüketicileri puanlarla, rozetlerle ve özel indirimlerle ödüllendirerek sürdürülebilir alışverişi bir alışkanlık haline getirmeyi hedefliyoruz. ("10 Yeşil Ürün Aldın!" rozeti gibi).</blockquote><h4>Sen de Katıl!</h4><p>Bu sadece bir başlangıç. Bilinçli seçimler yaparak hem gezegenimize hem de yerel ekonomiye katkıda bulunabilirsiniz. Unutmayın: Küçük değişiklikler, büyük fark yaratır!</p><p class="text-sm text-gray-500 mt-8">Bu proje, Birleşmiş Milletler Sürdürülebilir Kalkınma Hedefleri (SKH 9, 12, 13) ile uyumludur.</p></div>
+                <h3 class="text-3xl font-extrabold text-gray-900 mb-4 text-center">ReEarth: Daha Yeşil Bir Alışveriş Deneyimi</h3>
+                <p class="text-xl text-gray-600 mb-8 border-b pb-8 text-center font-medium">
+                    Alışverişlerinizle dünyayı değiştirebileceğinizi biliyor muydunuz? ReEarth Market olarak amacımız tam da bu: Bilinçli seçimler yaparak hem gezegenimize hem de cebimize fayda sağlamak.
+                </p>
+
+                <div class="prose prose-lg max-w-none text-gray-700">
+                    <h4>Neden Buradayız? Temel Sorunlar</h4>
+                    <p>
+                        Günümüz dünyasında, market raflarındaki ürünlerin nereden geldiği ve soframıza ulaşana kadar ne kadar çevresel etki yarattığı genellikle göz ardı ediliyor. Başlıca sorunlar şunlar:
+                    </p>
+                    <ul>
+                        <li><strong>Gıda Kilometreleri ve Karbon Ayak İzi:</strong> Özellikle ithal ürünlerin binlerce kilometrelik yolculuğu, ciddi miktarda sera gazı salımına neden oluyor.</li>
+                        <li><strong>Yerel Üreticinin Rolü:</strong> Yerel çiftçilerimiz ve üreticilerimiz desteklenmediğinde, hem yerel ekonomi zayıflıyor hem de daha uzun tedarik zincirlerine bağımlı kalıyoruz.</li>
+                        <li><strong>Farkındalık Eksikliği:</strong> Tüketiciler olarak, satın aldığımız ürünlerin çevresel etkileri hakkında yeterli bilgiye sahip değiliz.</li>
+                    </ul>
+
+                    <h4>ReEarth Yaklaşımı: Şeffaflık ve Bilinç</h4>
+                    <p>
+                        Bu platform, bu sorunlara basit ama etkili çözümler sunmayı hedefler:
+                    </p>
+                    <ul>
+                        <li><strong>Karşılaştırmalı Bilgi:</strong> Ana sayfamızda gördüğünüz gibi, benzer ürünlerin (örneğin muz veya avokado) ithal ve yerli seçeneklerini yan yana koyarak karbon ayak izi farklarını net bir şekilde gösteriyoruz.</li>
+                        <li><strong>Anlaşılır Etiketleme Sistemi (🌱 / ⚠️ / 🔥):</strong> Her ürünün taşıma mesafesi ve yöntemine göre hesaplanan karbon emisyonunu 3 basit kategoriye ayırıyoruz: Düşük, Orta ve Yüksek Emisyon. Bu etiketler, alışveriş sırasında hızlıca daha çevre dostu seçimler yapmanıza yardımcı olur.</li>
+                        <li><strong>Yerel Ürünü Vurgulama:</strong> "Eco-Etiketli" (Düşük Emisyon) ürünleri ayrı bir sekmede listeleyerek, hem çevreye duyarlı hem de genellikle daha taze olan yerel seçenekleri keşfetmenizi kolaylaştırıyoruz.</li>
+                    </ul>
+
+                    <h4>Hesaplamalarımızın Arkasındaki Mantık</h4>
+                    <p>
+                        Ürünlerin emisyon değerlerini belirlerken iki ana faktörü dikkate alıyoruz:
+                    </p>
+                    <ol>
+                        <li><strong>Mesafe (km):</strong> Ürünün menşeinden size ulaşana kadar kat ettiği tahmini mesafe.</li>
+                        <li><strong>Taşıma Türü:</strong> Emisyon faktörleri taşıma yöntemine göre büyük farklılık gösterir. Genel kural şudur: ✈️ Uçak > 🚚 Kamyon > 🚆 Tren > 🚢 Gemi (En düşükten en yükseğe). Kullandığımız faktörler (<code>${settings.factorAir}g</code>, <code>${settings.factorRoad}g</code>, <code>${settings.factorTrain}g</code>, <code>${settings.factorShip}g</code> / kg-km) güncel literatürdeki ortalamalara dayanmaktadır.</li>
+                    </ol>
+                    <p>
+                        Etiketleme eşiklerimiz (<code>${settings.tierLowThresholdGrams}g</code> ve <code>${settings.tierMediumThresholdGrams}g</code> / kg) ise, yerel ürünleri teşvik edecek ve anlamlı bir ayrım yaratacak şekilde belirlenmiştir. Kendi hesaplamalarınızı yapmak için "Emisyon Hesapla" sekmesini kullanabilirsiniz!
+                    </p>
+
+                    <h4>Gelecek Vizyonumuz: Yeşil Puan ve Daha Fazlası ✨</h4>
+                    <p>
+                        Bu platform, ReEarth projesinin sadece ilk adımı. Gelecekte, "Yeşil Puan" sistemini hayata geçirmeyi hedefliyoruz:
+                    </p>
+                    <blockquote>
+                        Düşük emisyonlu ürünleri tercih eden kullanıcıları puanlarla, rozetlerle ("10 Yeşil Ürün Aldın!") ve hatta özel indirimlerle ödüllendirerek sürdürülebilir alışverişi daha cazip hale getirmek istiyoruz. Sepetinizde 10 veya daha fazla 🌱 ürün olduğunda uygulanan %10 indirim, bu vizyonun küçük bir başlangıcı!
+                    </blockquote>
+
+                    <h4>Harekete Katılın!</h4>
+                     <p>Her alışveriş bir seçimdir. ReEarth Market'i kullanarak daha bilinçli seçimler yapabilir, yerel üreticileri destekleyebilir ve gezegenimiz için pozitif bir etki yaratabilirsiniz.</p>
+                     <p class="text-sm text-gray-500 mt-8">ReEarth Projesi, Birleşmiş Milletler Sürdürülebilir Kalkınma Hedefleri (SKH 9, 12, 13) ile uyumludur.</p>
+                </div>
             </div>`;
          content.innerHTML = blogHTML;
     },
