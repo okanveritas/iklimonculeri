@@ -304,6 +304,7 @@ const App = {
          content.className = 'grid grid-cols-1 gap-6';
          const blogHTML = `
             <div class="col-span-full bg-white rounded-xl shadow-lg p-6 md:p-10 max-w-3xl mx-auto border border-gray-200 fade-in-up">
+            <blockquote class="imgur-embed-pub" lang="en" data-id="a/roIE5V7" data-context="false" ><a href="//imgur.com/a/roIE5V7"></a></blockquote><script async src="//s.imgur.com/min/embed.js" charset="utf-8"></script>
                 <div class="flex justify-center mb-8"><img src="https://i.imgur.com/kS5xP0s.png" alt="İklim Öncüleri Logosu" class="h-20"></div>
                 <h3 class="text-3xl font-extrabold text-gray-900 mb-4 text-center">ReEarth: Daha Yeşil Bir Alışveriş Deneyimi</h3>
                 <p class="text-xl text-gray-600 mb-8 border-b pb-8 text-center font-medium">
@@ -865,4 +866,5 @@ const App = {
 
 // --- UYGULAMAYI BAŞLAT ---
 document.addEventListener('DOMContentLoaded', () => { App.init(); });
+
 
