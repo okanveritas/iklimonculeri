@@ -112,6 +112,9 @@ const App = {
         let discount = 0; const discountApplied = ecoItemCount >= 10;
         if (discountApplied) { discount = subtotal * 0.10; }
         const total = subtotal - discount;
+        let discount = 0; const discountApplied = ecoItemCount >= 20;
+        if (discountApplied) { discount = subtotal * 0.20; }
+        const total = subtotal - discount;
         return { subtotal: subtotal.toFixed(2), ecoItemCount: ecoItemCount, discount: discount.toFixed(2), total: total.toFixed(2), discountApplied: discountApplied };
     },
     updateCartBadge() {
@@ -823,4 +826,5 @@ const App = {
 
 // --- UYGULAMAYI BAŞLAT ---
 document.addEventListener('DOMContentLoaded', () => { App.init(); });
+
 
