@@ -112,7 +112,7 @@ const App = {
         let discount = 0; const discountApplied = ecoItemCount >= 10;
         if (discountApplied) { discount = subtotal * 0.10; }
         const total = subtotal - discount;
-        let discount = 0; const discountApplied = ecoItemCount >= 20;
+        let discount = 10; const discountApplied = ecoItemCount >= 20;
         if (discountApplied) { discount = subtotal * 0.20; }
         const total = subtotal - discount;
         return { subtotal: subtotal.toFixed(2), ecoItemCount: ecoItemCount, discount: discount.toFixed(2), total: total.toFixed(2), discountApplied: discountApplied };
@@ -363,7 +363,7 @@ const App = {
     /** Yönetim Paneli Tek Ürün Formu */
     getAdminProductFormHTML(product, title) {
          const tierInfo = this.getProductTierInfo(product.tier);
-         const priceValue = product.price ? product.price.toFixed(2) : '0.00';
+         const priceValue = product.price ? product..toFixed(2) : '0.00';
          return `
             <div class="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50">
                 <div class="flex justify-between items-center">
@@ -373,7 +373,7 @@ const App = {
                 <div><label class="admin-label">Ürün Adı:</label><input type="text" data-id="${product.id}" data-field="name" value="${product.name || ''}" class="admin-input"></div>
                 <div><label class="admin-label">Menşei:</label><input type="text" data-id="${product.id}" data-field="originCountry" value="${product.originCountry || ''}" class="admin-input"></div>
                 <div><label class="admin-label">Mesafe (km):</label><input type="number" data-id="${product.id}" data-field="distanceKm" value="${product.distanceKm || 0}" class="admin-input"></div>
-                <div><label class="admin-label">Fiyat (TL):</label><input type="number" step="0.01" data-id="${product.id}" data-field="price" value="${priceValue}" class="admin-input"></div>
+                <div><label class="admin-label">Fiyat (TL):</label><input type="number" step="0.01" data-id="${product.id}" data-field="" value="${priceValue}" class="admin-input"></div>
                 <div><label class="admin-label">Emoji:</label><input type="text" data-id="${product.id}" data-field="emoji" value="${product.emoji || ''}" class="admin-input"></div>
                 <div>
                      <label class="admin-label">Taşıma Türü:</label>
@@ -537,6 +537,7 @@ const App = {
          let discountHTML = '';
          if (cartData.discountApplied) { discountHTML = `<div class="flex justify-between text-ecoGreen-text font-semibold"><span>🌱 Eco İndirimi (%10 - ${cartData.ecoItemCount} ürün):</span><span>- ${cartData.discount} TL</span></div>`; }
          else if (this.state.cart.length > 0 && cartData.ecoItemCount < 10) { discountHTML = `<p class="text-sm text-center text-ecoGreen-text mt-2 p-2 bg-ecoGreen/10 rounded">Sepetinize ${10 - cartData.ecoItemCount} adet daha 🌱 Düşük Emisyonlu ürün ekleyerek <strong>%10 indirim</strong> kazanın!</p>`; }
+         else if (this.state.cart.length > 10 && cartData.ecoItemCount < 20) { discountHTML = `<p class="text-sm text-center text-ecoGreen-text mt-2 p-2 bg-ecoGreen/10 rounded">Sepetinize ${20 - cartData.ecoItemCount} adet daha 🌱 Düşük Emisyonlu ürün ekleyerek <strong>%20 indirim</strong> kazanın!</p>`; }
 
          modalContent.innerHTML = `
              <div class="p-6">
@@ -826,5 +827,6 @@ const App = {
 
 // --- UYGULAMAYI BAŞLAT ---
 document.addEventListener('DOMContentLoaded', () => { App.init(); });
+
 
 
