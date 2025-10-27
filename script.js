@@ -106,13 +106,44 @@ const App = {
          this.updateCartBadge();
          this.renderCartModal();
     },
+    // GÜNCELLENDİ: calculateCartTotal fonksiyonu kademeli indirim için
     calculateCartTotal() {
-        let subtotal = 0, ecoItemCount = 0;
-        this.state.cart.forEach(item => { subtotal += (item.price || 0) * item.quantity; if (item.tier === 'low') { ecoItemCount += item.quantity; } });
-        let discount = 0; const discountApplied = ecoItemCount >= 10;
-        if (discountApplied) { discount = subtotal * 0.10; }
+        let subtotal = 0;
+        let ecoItemCount = 0;
+        this.state.cart.forEach(item => {
+            subtotal += (item.price || 0) * item.quantity;
+            if (item.tier === 'low') {
+                ecoItemCount += item.quantity;
+            }
+        });
+
+        let discount = 0;
+        let discountPercentage = 0;
+        let discountApplied = false;
+
+        // Kademeli İndirim Kontrolü
+        if (ecoItemCount >= 20) {
+            discountPercentage = 0.20; // %20 indirim
+            discountApplied = true;
+        } else if (ecoItemCount >= 10) {
+            discountPercentage = 0.10; // %10 indirim
+            discountApplied = true;
+        }
+
+        if (discountApplied) {
+            discount = subtotal * discountPercentage;
+        }
+
         const total = subtotal - discount;
-        return { subtotal: subtotal.toFixed(2), ecoItemCount: ecoItemCount, discount: discount.toFixed(2), total: total.toFixed(2), discountApplied: discountApplied };
+
+        return {
+            subtotal: subtotal.toFixed(2),
+            ecoItemCount: ecoItemCount,
+            discount: discount.toFixed(2),
+            discountPercentage: discountPercentage * 100, // % olarak göstermek için 100 ile çarp
+            total: total.toFixed(2),
+            discountApplied: discountApplied
+        };
     },
     updateCartBadge() {
          const badge = document.getElementById('cart-badge');
@@ -267,7 +298,7 @@ const App = {
          content.innerHTML = calculatorHTML;
          this.attachCalculatorListener();
     },
-    /** Blog Sayfası (GÜNCELLENDİ) */
+    /** Blog Sayfası */
     renderBlogPage(content, title) {
          title.textContent = '💡 Proje: ReEarth';
          content.className = 'grid grid-cols-1 gap-6';
@@ -278,48 +309,20 @@ const App = {
                 <p class="text-xl text-gray-600 mb-8 border-b pb-8 text-center font-medium">
                     Alışverişlerinizle dünyayı değiştirebileceğinizi biliyor muydunuz? ReEarth Market olarak amacımız tam da bu: Bilinçli seçimler yaparak hem gezegenimize hem de cebimize fayda sağlamak.
                 </p>
-
                 <div class="prose prose-lg max-w-none text-gray-700">
                     <h4>Neden Buradayız? Temel Sorunlar</h4>
-                    <p>
-                        Günümüz dünyasında, market raflarındaki ürünlerin nereden geldiği ve soframıza ulaşana kadar ne kadar çevresel etki yarattığı genellikle göz ardı ediliyor. Başlıca sorunlar şunlar:
-                    </p>
-                    <ul>
-                        <li><strong>Gıda Kilometreleri ve Karbon Ayak İzi:</strong> Özellikle ithal ürünlerin binlerce kilometrelik yolculuğu, ciddi miktarda sera gazı salımına neden oluyor.</li>
-                        <li><strong>Yerel Üreticinin Rolü:</strong> Yerel çiftçilerimiz ve üreticilerimiz desteklenmediğinde, hem yerel ekonomi zayıflıyor hem de daha uzun tedarik zincirlerine bağımlı kalıyoruz.</li>
-                        <li><strong>Farkındalık Eksikliği:</strong> Tüketiciler olarak, satın aldığımız ürünlerin çevresel etkileri hakkında yeterli bilgiye sahip değiliz.</li>
-                    </ul>
-
+                    <p>Günümüz dünyasında, market raflarındaki ürünlerin nereden geldiği ve soframıza ulaşana kadar ne kadar çevresel etki yarattığı genellikle göz ardı ediliyor. Başlıca sorunlar şunlar:</p>
+                    <ul><li><strong>Gıda Kilometreleri ve Karbon Ayak İzi:</strong> Özellikle ithal ürünlerin binlerce kilometrelik yolculuğu, ciddi miktarda sera gazı salımına neden oluyor.</li><li><strong>Yerel Üreticinin Rolü:</strong> Yerel çiftçilerimiz ve üreticilerimiz desteklenmediğinde, hem yerel ekonomi zayıflıyor hem de daha uzun tedarik zincirlerine bağımlı kalıyoruz.</li><li><strong>Farkındalık Eksikliği:</strong> Tüketiciler olarak, satın aldığımız ürünlerin çevresel etkileri hakkında yeterli bilgiye sahip değiliz.</li></ul>
                     <h4>ReEarth Yaklaşımı: Şeffaflık ve Bilinç</h4>
-                    <p>
-                        Bu platform, bu sorunlara basit ama etkili çözümler sunmayı hedefler:
-                    </p>
-                    <ul>
-                        <li><strong>Karşılaştırmalı Bilgi:</strong> Ana sayfamızda gördüğünüz gibi, benzer ürünlerin (örneğin muz veya avokado) ithal ve yerli seçeneklerini yan yana koyarak karbon ayak izi farklarını net bir şekilde gösteriyoruz.</li>
-                        <li><strong>Anlaşılır Etiketleme Sistemi (🌱 / ⚠️ / 🔥):</strong> Her ürünün taşıma mesafesi ve yöntemine göre hesaplanan karbon emisyonunu 3 basit kategoriye ayırıyoruz: Düşük, Orta ve Yüksek Emisyon. Bu etiketler, alışveriş sırasında hızlıca daha çevre dostu seçimler yapmanıza yardımcı olur.</li>
-                        <li><strong>Yerel Ürünü Vurgulama:</strong> "Eco-Etiketli" (Düşük Emisyon) ürünleri ayrı bir sekmede listeleyerek, hem çevreye duyarlı hem de genellikle daha taze olan yerel seçenekleri keşfetmenizi kolaylaştırıyoruz.</li>
-                    </ul>
-
+                    <p>Bu platform, bu sorunlara basit ama etkili çözümler sunmayı hedefler:</p>
+                    <ul><li><strong>Karşılaştırmalı Bilgi:</strong> Ana sayfamızda gördüğünüz gibi, benzer ürünlerin (örneğin muz veya avokado) ithal ve yerli seçeneklerini yan yana koyarak karbon ayak izi farklarını net bir şekilde gösteriyoruz.</li><li><strong>Anlaşılır Etiketleme Sistemi (🌱 / ⚠️ / 🔥):</strong> Her ürünün taşıma mesafesi ve yöntemine göre hesaplanan karbon emisyonunu 3 basit kategoriye ayırıyoruz: Düşük, Orta ve Yüksek Emisyon. Bu etiketler, alışveriş sırasında hızlıca daha çevre dostu seçimler yapmanıza yardımcı olur.</li><li><strong>Yerel Ürünü Vurgulama:</strong> "Eco-Etiketli" (Düşük Emisyon) ürünleri ayrı bir sekmede listeleyerek, hem çevreye duyarlı hem de genellikle daha taze olan yerel seçenekleri keşfetmenizi kolaylaştırıyoruz.</li></ul>
                     <h4>Hesaplamalarımızın Arkasındaki Mantık</h4>
-                    <p>
-                        Ürünlerin emisyon değerlerini belirlerken iki ana faktörü dikkate alıyoruz:
-                    </p>
-                    <ol>
-                        <li><strong>Mesafe (km):</strong> Ürünün menşeinden size ulaşana kadar kat ettiği tahmini mesafe.</li>
-                        <li><strong>Taşıma Türü:</strong> Emisyon faktörleri taşıma yöntemine göre büyük farklılık gösterir. Genel kural şudur: ✈️ Uçak > 🚚 Kamyon > 🚆 Tren > 🚢 Gemi (En düşükten en yükseğe). Kullandığımız faktörler (<code>${settings.factorAir}g</code>, <code>${settings.factorRoad}g</code>, <code>${settings.factorTrain}g</code>, <code>${settings.factorShip}g</code> / kg-km) güncel literatürdeki ortalamalara dayanmaktadır.</li>
-                    </ol>
-                    <p>
-                        Etiketleme eşiklerimiz (<code>${settings.tierLowThresholdGrams}g</code> ve <code>${settings.tierMediumThresholdGrams}g</code> / kg) ise, yerel ürünleri teşvik edecek ve anlamlı bir ayrım yaratacak şekilde belirlenmiştir. Kendi hesaplamalarınızı yapmak için "Emisyon Hesapla" sekmesini kullanabilirsiniz!
-                    </p>
-
-                    <h4>Gelecek Vizyonumuz: Yeşil Puan ve Daha Fazlası ✨</h4>
-                    <p>
-                        Bu platform, ReEarth projesinin sadece ilk adımı. Gelecekte, "Yeşil Puan" sistemini hayata geçirmeyi hedefliyoruz:
-                    </p>
-                    <blockquote>
-                        Düşük emisyonlu ürünleri tercih eden kullanıcıları puanlarla, rozetlerle ("10 Yeşil Ürün Aldın!") ve hatta özel indirimlerle ödüllendirerek sürdürülebilir alışverişi daha cazip hale getirmek istiyoruz. Sepetinizde 10 veya daha fazla 🌱 ürün olduğunda uygulanan %10 indirim, bu vizyonun küçük bir başlangıcı!
-                    </blockquote>
-
+                    <p>Ürünlerin emisyon değerlerini belirlerken iki ana faktörü dikkate alıyoruz:</p>
+                    <ol><li><strong>Mesafe (km):</strong> Ürünün menşeinden size ulaşana kadar kat ettiği tahmini mesafe.</li><li><strong>Taşıma Türü:</strong> Emisyon faktörleri taşıma yöntemine göre büyük farklılık gösterir. Genel kural şudur: ✈️ Uçak > 🚚 Kamyon > 🚆 Tren > 🚢 Gemi (En düşükten en yükseğe). Kullandığımız faktörler (<code>${settings.factorAir}g</code>, <code>${settings.factorRoad}g</code>, <code>${settings.factorTrain}g</code>, <code>${settings.factorShip}g</code> / kg-km) güncel literatürdeki ortalamalara dayanmaktadır.</li></ol>
+                    <p>Etiketleme eşiklerimiz (<code>${settings.tierLowThresholdGrams}g</code> ve <code>${settings.tierMediumThresholdGrams}g</code> / kg) ise, yerel ürünleri teşvik edecek ve anlamlı bir ayrım yaratacak şekilde belirlenmiştir. Kendi hesaplamalarınızı yapmak için "Emisyon Hesapla" sekmesini kullanabilirsiniz!</p>
+                    <h4>Gelecek Vizyonumuz: Yeşil Puan & Daha Fazlası ✨</h4>
+                    <p>Bu platform, ReEarth projesinin sadece ilk adımı. Gelecekte, "Yeşil Puan" sistemini hayata geçirmeyi hedefliyoruz:</p>
+                    <blockquote>Düşük emisyonlu ürünleri tercih eden kullanıcıları puanlarla, rozetlerle ("10 Yeşil Ürün Aldın!") ve hatta özel indirimlerle ödüllendirerek sürdürülebilir alışverişi daha cazip hale getirmek istiyoruz. Sepetinizde 10 veya daha fazla 🌱 ürün olduğunda uygulanan indirim, bu vizyonun küçük bir başlangıcı!</blockquote>
                     <h4>Harekete Katılın!</h4>
                      <p>Her alışveriş bir seçimdir. ReEarth Market'i kullanarak daha bilinçli seçimler yapabilir, yerel üreticileri destekleyebilir ve gezegenimiz için pozitif bir etki yaratabilirsiniz.</p>
                      <p class="text-sm text-gray-500 mt-8">ReEarth Projesi, Birleşmiş Milletler Sürdürülebilir Kalkınma Hedefleri (SKH 9, 12, 13) ile uyumludur.</p>
@@ -506,7 +509,7 @@ const App = {
          }
     },
 
-     /** Sepet Modalı */
+     /** Sepet Modalı (GÜNCELLENDİ: Kademeli indirim mesajı) */
     renderCartModal() {
          const modalContainer = document.getElementById('modal-container');
          const modalContent = document.getElementById('modal-content');
@@ -532,8 +535,20 @@ const App = {
                  </div>`).join('');
          }
          let discountHTML = '';
-         if (cartData.discountApplied) { discountHTML = `<div class="flex justify-between text-ecoGreen-text font-semibold"><span>🌱 Eco İndirimi (%10 - ${cartData.ecoItemCount} ürün):</span><span>- ${cartData.discount} TL</span></div>`; }
-         else if (this.state.cart.length > 0 && cartData.ecoItemCount < 10) { discountHTML = `<p class="text-sm text-center text-ecoGreen-text mt-2 p-2 bg-ecoGreen/10 rounded">Sepetinize ${10 - cartData.ecoItemCount} adet daha 🌱 Düşük Emisyonlu ürün ekleyerek <strong>%10 indirim</strong> kazanın!</p>`; }
+         // Kademeli İndirim Mesajı Güncellemesi
+         if (cartData.discountApplied) {
+              const discountPercent = cartData.discountPercentage; // %10 veya %20
+             discountHTML = `<div class="flex justify-between text-ecoGreen-text font-semibold"><span>🌱 Eco İndirimi (%${discountPercent} - ${cartData.ecoItemCount} ürün):</span><span>- ${cartData.discount} TL</span></div>`;
+         } else if (this.state.cart.length > 0) {
+              const neededFor10 = 10 - cartData.ecoItemCount;
+              discountHTML = `<p class="text-sm text-center text-ecoGreen-text mt-2 p-2 bg-ecoGreen/10 rounded">Sepetinize ${neededFor10} adet daha 🌱 Düşük Emisyonlu ürün ekleyerek <strong>%10 indirim</strong> kazanın!</p>`;
+         }
+         // 10'a ulaşıldıysa, 20 için mesaj göster
+         if (cartData.ecoItemCount >= 10 && cartData.ecoItemCount < 20) {
+             const neededFor20 = 20 - cartData.ecoItemCount;
+             discountHTML += `<p class="text-sm text-center text-ecoGreen-text mt-2 p-2 bg-ecoGreen/10 rounded">${neededFor20} adet daha 🌱 ekleyerek indiriminizi <strong>%20'ye</strong> çıkarın!</p>`;
+         }
+
 
          modalContent.innerHTML = `
              <div class="p-6">
@@ -603,13 +618,15 @@ const App = {
                      setTimeout(() => button.classList.remove('transform', 'scale-110', 'bg-ecoGreen'), 400);
                     return;
                 }
+                // Admin panelindeyken kartlara tıklayınca modal açma
+                if (this.state.currentPage === 'admin') return;
+
                 const id = parseInt(card.dataset.id);
-                if (this.state.currentPage !== 'admin') {
-                    this.openModal(id);
-                }
+                this.openModal(id);
             });
         });
     },
+
 
      /** Sepet Butonu (Header) */
     attachCartButtonListener() {
@@ -658,6 +675,13 @@ const App = {
                 const productId = parseInt(btn.dataset.id);
                 if (!isNaN(productId)) {
                      this.handleProductSave(productId);
+                     // Kaydetme sonrası görsel geri bildirim
+                     btn.textContent = 'Kaydedildi!';
+                     btn.classList.add('bg-ecoGreen-dark');
+                     setTimeout(() => {
+                          btn.textContent = 'Kaydet';
+                          btn.classList.remove('bg-ecoGreen-dark');
+                     }, 1500);
                 }
             });
         });
@@ -666,7 +690,14 @@ const App = {
         const addNewPairBtn = document.getElementById('add-new-pair-btn');
         if (addNewPairBtn) {
              addNewPairBtn.addEventListener('click', () => {
-                  this.handleAddNewPair();
+                  if(this.handleAddNewPair()) { // Sadece başarılı eklemede geri bildirim ver
+                      addNewPairBtn.textContent = 'Yeni Çift Eklendi!';
+                      addNewPairBtn.classList.add('bg-ecoGreen-dark');
+                      setTimeout(() => {
+                           addNewPairBtn.textContent = 'Yeni Çifti Ekle';
+                           addNewPairBtn.classList.remove('bg-ecoGreen-dark');
+                      }, 1500);
+                  }
              });
         }
     },
@@ -712,7 +743,6 @@ const App = {
                   if(needsRecalcLocal) pair.local = this.calculateEmissionData(pair.local);
                  localUpdated = true;
             }
-            // productNeedsRecalculation, bu çift için genel bir durum tutar (yeniden çizim için)
             if(needsRecalcImport || needsRecalcLocal) productNeedsRecalculation = true;
             return pair;
         });
@@ -731,16 +761,17 @@ const App = {
                if (needsRecalcFlat) {
                    this.state.products[productIndex] = this.calculateEmissionData(originalProduct);
                } else {
+                   // Sadece emisyonu etkilemeyen alanlar değiştiyse kopyala
                    this.state.products[productIndex] = { ...originalProduct };
                }
                this.state.products.sort((a, b) => b.greenScore - a.greenScore);
          }
 
         console.log(`Ürün ${productId} güncellendi.`);
-        // Sadece admin panelini yeniden çiz, diğer sayfalar zaten güncel state'i kullanacak
-        if (this.state.currentPage === 'admin') {
-            this.renderPage();
-        }
+        // Admin panelini yeniden çizmeye gerek YOK, çünkü input değerleri zaten güncel.
+        // Sadece hesaplanan değerlerin gösterildiği küçük kısmı güncelleyebiliriz (opsiyonel)
+        // Veya daha basiti, sadece state'i güncelleyip bırakmak.
+        // Eğer başka bir sekmeye geçerse zaten güncel state ile çizilecek.
     },
 
 
@@ -748,25 +779,37 @@ const App = {
     handleAddNewPair() {
          const categoryInput = document.getElementById('new-pair-category');
          const category = categoryInput.value.trim();
-         if (!category) { alert('Lütfen kategori adı girin.'); categoryInput.focus(); return; }
+         if (!category) { alert('Lütfen kategori adı girin.'); categoryInput.focus(); return false; } // Başarısızsa false döndür
 
          const maxId = this.state.products.reduce((max, p) => Math.max(max, p.id), 0);
          const newImportId = maxId + 1;
          const newLocalId = maxId + 2;
 
          const newImportData = { id: newImportId, weightKg: 1.0 };
+         let importName = '';
          document.querySelectorAll(`input[data-id="new-import"], select[data-id="new-import"]`).forEach(input => {
              const field = input.dataset.field; let value = input.value;
              if (['distanceKm', 'price'].includes(field)) value = parseFloat(value) || 0;
+             if (field === 'weightKg' && value <= 0) value = 1;
+             if (field === 'name') importName = value.trim(); // İsmi al
              newImportData[field] = value;
          });
 
          const newLocalData = { id: newLocalId, weightKg: 1.0 };
+          let localName = '';
          document.querySelectorAll(`input[data-id="new-local"], select[data-id="new-local"]`).forEach(input => {
               const field = input.dataset.field; let value = input.value;
               if (['distanceKm', 'price'].includes(field)) value = parseFloat(value) || 0;
+              if (field === 'weightKg' && value <= 0) value = 1;
+              if (field === 'name') localName = value.trim(); // İsmi al
              newLocalData[field] = value;
          });
+
+         // İsimlerin boş olmadığını kontrol et
+         if (!importName || !localName) {
+             alert('Lütfen hem ithal hem de yerli ürün için isim girin.');
+             return false; // Başarısızsa false döndür
+         }
 
          const processedNewImport = this.calculateEmissionData(newImportData);
          const processedNewLocal = this.calculateEmissionData(newLocalData);
@@ -777,30 +820,29 @@ const App = {
 
          console.log('Yeni ürün çifti eklendi:', category);
          this.renderPage(); // Yönetim panelini yeniden çiz
+         return true; // Başarılıysa true döndür
     },
 
     // Yönetim Paneli Şifresini Sorar
-    promptAdminPassword(content, title) { // content ve title parametreleri eklendi
+    promptAdminPassword(content, title) {
          const enteredPassword = prompt("Yönetim Paneline erişmek için şifreyi girin (İpucu: admin):");
          if (enteredPassword === this.state.adminPassword) {
               this.state.isAdminMode = true;
               document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
               document.getElementById('nav-admin').classList.add('active');
               this.state.currentPage = 'admin';
-              this.renderAdminPage(content, title); // Artık content ve title ile çağırılıyor
+              this.renderAdminPage(content, title);
          } else if (enteredPassword !== null) {
               alert("Yanlış şifre!");
               this.state.currentPage = 'all';
-              // Aktif sekmeyi düzelt
               document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
               document.getElementById('nav-all').classList.add('active');
-              this.renderPage(); // Doğru sayfayı yükle
+              this.renderPage();
          } else {
                this.state.currentPage = 'all';
-               // Aktif sekmeyi düzelt
                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
                document.getElementById('nav-all').classList.add('active');
-               this.renderPage(); // Doğru sayfayı yükle
+               this.renderPage();
          }
     },
 
